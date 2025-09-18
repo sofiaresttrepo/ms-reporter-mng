@@ -7,7 +7,8 @@ const { concat } = require("rxjs");
  * Please add any new domain to this list
  */
 const domains = {
-  report: require("./report")
+  report: require("./report"),
+  vehiclestats: require("./vehiclestats")
 };
 
 module.exports = {

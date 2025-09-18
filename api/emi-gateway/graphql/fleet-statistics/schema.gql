@@ -1,0 +1,97 @@
+# Fleet Statistics GraphQL Schema
+# Defines queries for fleet analytics and reporting
+
+type FleetStatistics {
+  """Unique identifier for the fleet statistics document"""
+  _id: String!
+  
+  """Total number of vehicles processed"""
+  totalVehicles: Int!
+  
+  """Total horsepower across all vehicles"""
+  totalHorsepower: Int!
+  
+  """Average horsepower per vehicle"""
+  averageHorsepower: Float!
+  
+  """Count of vehicles by type (sedan, suv, truck, etc.)"""
+  typeCount: VehicleTypeCount!
+  
+  """Count of vehicles by power source (gasoline, electric, hybrid, etc.)"""
+  powerSourceCount: VehiclePowerSourceCount!
+  
+  """Count of vehicles by decade (1990s, 2000s, 2010s, etc.)"""
+  decadeCount: VehicleDecadeCount!
+  
+  """Timestamp of the last statistics update"""
+  lastUpdated: String!
+  
+  """Size of the last processed batch"""
+  lastBatchSize: Int
+}
+
+type VehicleTypeCount {
+  """Number of sedan vehicles"""
+  sedan: Int
+  
+  """Number of SUV vehicles"""
+  suv: Int
+  
+  """Number of truck vehicles"""
+  truck: Int
+  
+  """Number of coupe vehicles"""
+  coupe: Int
+  
+  """Number of hatchback vehicles"""
+  hatchback: Int
+  
+  """Number of convertible vehicles"""
+  convertible: Int
+  
+  """Number of wagon vehicles"""
+  wagon: Int
+  
+  """Number of unknown type vehicles"""
+  unknown: Int
+}
+
+type VehiclePowerSourceCount {
+  """Number of gasoline-powered vehicles"""
+  gasoline: Int
+  
+  """Number of diesel-powered vehicles"""
+  diesel: Int
+  
+  """Number of electric vehicles"""
+  electric: Int
+  
+  """Number of hybrid vehicles"""
+  hybrid: Int
+  
+  """Number of unknown power source vehicles"""
+  unknown: Int
+}
+
+type VehicleDecadeCount {
+  """Number of vehicles from the 1990s"""
+  _1990s: Int
+  
+  """Number of vehicles from the 2000s"""
+  _2000s: Int
+  
+  """Number of vehicles from the 2010s"""
+  _2010s: Int
+  
+  """Number of vehicles from the 2020s"""
+  _2020s: Int
+}
+
+extend type Query {
+  """
+  Get comprehensive fleet statistics
+  Returns aggregated data about the entire vehicle fleet including counts by type,
+  power source, decade, and calculated averages
+  """
+  getFleetStatistics: FleetStatistics
+}
