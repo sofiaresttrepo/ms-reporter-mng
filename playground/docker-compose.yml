@@ -1,0 +1,84 @@
+version: "3"
+
+services:
+  ##################################
+  #### infrastructure SERVICES ####
+  ##################################
+  # BROKER
+  broker-mqtt:
+    image: eclipse-mosquitto:1.6
+    ports:
+     - "9001:9001"
+     - "1883:1883"
+    volumes:
+      - NEBULAE_MQTT:/mosquitto/data          
+  # MOGNO
+  store-mongo:
+    image: mongo:4
+    ports:
+    - "27017:27017"
+    environment: 
+        - storageEngine=wiredTiger
+    volumes: 
+      - NEBULAE_MONGO:/data/db
+  # NATS-IO
+  nats-io:
+    image: nats:latest
+    ports:
+     - "4222:4222"
+    command: -js -c /etc/nats/nats-server.conf
+    volumes: 
+      - NEBULAE_NATS:/nats/db
+      - ./nats-server.conf:/etc/nats/nats-server.conf
+  # REDIS
+  redis:
+    image: redis:7.0.11-alpine
+    ports:
+     - "6379:6379"
+    command: redis-server --save 60 1000 --loglevel warning # dump the dataset to disk every 60 seconds if at least 1000 keys changed
+    volumes: 
+      - NEBULAE_REDIS:/data
+  # KEYCLOAK
+  keycloak_db:
+    image: postgres:15
+    ports:
+      - "15432:15432"
+    environment:
+        - POSTGRES_DB=keycloak
+        - POSTGRES_USER=keycloak
+        - POSTGRES_PASSWORD=6jhVPaQWhgEMl0sXPnNmkLfS
+        - POSTGRES_ROOT_PASSWORD=qgZqZGdoe5loJ0OrZvq36LBr
+    volumes:
+      - NEBULAE_KC:/var/lib/postgresql
+      - NEBULAE_KC_DATA:/var/lib/postgresql/data
+  keycloak:
+      image: bitnami/keycloak:22.0.1      
+      environment:
+        - KEYCLOAK_LOGLEVEL=DEBUG
+        - DB_VENDOR=postgres
+        - DB_USER=keycloak
+        - DB_DATABASE=keycloak
+        - DB_PASSWORD=6jhVPaQWhgEMl0sXPnNmkLfS
+        - DB_PORT=5432
+        - DB_ADDR=keycloak_db
+        - KEYCLOAK_ADMIN_USER=admin
+        - KEYCLOAK_ADMIN_PASSWORD=admin
+        - KEYCLOAK_STATISTICS=all
+      links:
+        - keycloak_db:postgres
+      ports:
+        - "8443:8443"
+        - "8080:8080"
+        - "9990:9990"
+      # volumes:
+      #   - ../keycloak-themes/themes:/opt/bitnami/keycloak/themes  
+      depends_on:
+      - keycloak_db
+volumes: 
+  NEBULAE_MQTT:
+  NEBULAE_MONGO:
+  NEBULAE_NATS:
+  NEBULAE_REDIS:
+  NEBULAE_KC:
+  NEBULAE_KC_DATA:
+  

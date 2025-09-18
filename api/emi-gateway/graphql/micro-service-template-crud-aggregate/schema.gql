@@ -1,0 +1,93 @@
+type CommandResponse {
+  "Response code"
+  code: Int
+  "Response message"
+  message: String
+}
+
+type MicroServiceTemplateCrudAggregate {
+  "CrudAggregate ID"
+  id: ID!
+  "name"
+  name: String!
+  "organization id"
+  organizationId: String!
+  "CrudAggregate description"
+  description: String
+  "CrudAggregate active flag"
+  active: Boolean!  
+  "object metadata"
+  metadata: MicroServiceTemplateCrudAggregateMetadata
+}
+
+type MicroServiceTemplateCrudAggregateMetadata {
+    createdBy: String
+		createdAt: BigInt
+		updatedBy: String
+		updatedAt: BigInt
+}
+
+type MicroServiceTemplateCrudAggregateListing {
+  "Listing"
+  listing: [MicroServiceTemplateCrudAggregate]
+  "query total result count"
+  queryTotalResultCount: Int,  
+}
+
+
+input MicroServiceTemplateCrudAggregateFilterInput {
+  "Name"
+  name: String
+  "organization id"
+  organizationId: String!
+  "CrudAggregate active flag"
+  active: Boolean
+}
+
+input MicroServiceTemplateCrudAggregatePaginationInput {
+  "Page"
+  page: Int!
+  "Count"
+  count: Int!
+  "query total result count flag"
+  queryTotalResultCount: Boolean
+}
+
+input MicroServiceTemplateCrudAggregateSortInput {
+  field: String!,
+  asc: Boolean!,
+}
+
+input MicroServiceTemplateCrudAggregateInput {
+  "name"
+  name: String
+  "organization id"
+  organizationId: String!
+  "CrudAggregate description"
+  description: String
+  "CrudAggregate active flag"
+  active: Boolean
+}
+
+
+type Query {
+  "Get CrudAggregates filtered "
+  MicroServiceTemplateCrudAggregateListing(filterInput: MicroServiceTemplateCrudAggregateFilterInput, paginationInput: MicroServiceTemplateCrudAggregatePaginationInput, sortInput: MicroServiceTemplateCrudAggregateSortInput): MicroServiceTemplateCrudAggregateListing
+  "Get CrudAggregate by its id"
+  MicroServiceTemplateCrudAggregate(id: ID!, organizationId: String!): MicroServiceTemplateCrudAggregate
+}
+
+type Mutation {
+  "Create a new CrudAggregate"
+  MicroServiceTemplateCreateCrudAggregate(input: MicroServiceTemplateCrudAggregateInput!): MicroServiceTemplateCrudAggregate
+  "Update an CrudAggregate"
+  MicroServiceTemplateUpdateCrudAggregate(id: ID!, input: MicroServiceTemplateCrudAggregateInput!, merge: Boolean!): MicroServiceTemplateCrudAggregate  
+  "Deletes an CrudAggregate"
+  MicroServiceTemplateDeleteCrudAggregates(ids: [ID]!): CommandResponse  
+}
+
+
+type Subscription {
+  "This events is triggered when a crudAggregate updated or deleted"
+  MicroServiceTemplateCrudAggregateModified(id: ID!): MicroServiceTemplateCrudAggregate
+}

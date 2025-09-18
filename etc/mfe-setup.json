@@ -1,0 +1,16 @@
+[
+  {
+    "name": "micro-service-template-crud-aggregate",
+    "src": "frontend/emi/micro-service-template-crud-aggregate",
+    "assets": "frontend/emi/micro-service-template-crud-aggregate/assets/micro-service-template-crud-aggregate",
+    "prebuildCommands": [],
+    "environmentVars": {
+      "_env": {
+      },
+      "_env_local": {
+      },
+      "_env_production": {
+      }
+    }
+  }
+]

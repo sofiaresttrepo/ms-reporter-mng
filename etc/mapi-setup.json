@@ -1,0 +1,8 @@
+[
+    {
+        "name": "micro-service-template-crud-aggregate",
+        "type": "graphql",        
+        "src": "api/emi-gateway/graphql/micro-service-template-crud-aggregate",
+        "preBuildCommands": []
+    }
+]

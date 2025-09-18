@@ -1,0 +1,10 @@
+# System Files
+*.DS_Store
+*Thumbs.db
+
+# IDE Files
+.history/
+.vscode/
+
+#SECRETS
+*service-key.json

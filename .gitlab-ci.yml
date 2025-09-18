@@ -1,0 +1,280 @@
+variables:
+  #DOCKER_HOST: tcp://docker:2375/
+  DOCKER_DRIVER: overlay2  
+  MICROSERVICE_ID: micro-service-template
+  EMI_IMAGE_NAME: emi
+  FRONTEND_ID: emi
+  EMI_API_ID: emi-gateway
+  EMIGATEWAY_IMAGE_NAME: emigateway #emi-gateway
+  BE_MICRO_SERVICE_TEMPLATE_IMAGE_NAME: backend.micro-service-template
+  BE_MICRO_SERVICE_TEMPLATE_IMAGE_TAG: 1.0.0
+
+stages:
+  - prepare
+  - build
+  - pack
+  - deploy
+
+prepare:environment:
+  stage: prepare
+  image: debian:stable-slim
+  script: |
+    # DECLARING ALL NEEDED ENVIRONMENT VARIABLES AND STORING THEM TO .artifacts_prepare/variables
+    mkdir .artifacts_prepare
+    declare branch=$CI_COMMIT_REF_NAME        
+    echo 'export branch=$CI_COMMIT_REF_NAME' >> .artifacts_prepare/variables
+    for value in GKE_CLUSTER GCP_SERVICE_ACCOUNT GKE_PROJECT GKE_ZONE FILE_ENV_FRONTEND
+    do
+      echo $'eval export VARNAME=\'$\'"$branch"\'_\'"VARNAME"' | sed -e "s/VARNAME/${value}/g"  >> .artifacts_prepare/variables    
+    done    
+    source .artifacts_prepare/variables
+    # DECODING GCP_SERVICE_ACCOUNT AND STORING IT TO .artifacts_prepare/gcloud-service-key.json
+    echo $GCP_SERVICE_ACCOUNT | base64 --decode --ignore-garbage > .artifacts_prepare/gcloud-service-key.json
+  artifacts: # artifacts to upload for other jobs
+    paths:
+    - .artifacts_prepare
+
+prepare:mbinit:
+  stage: prepare
+  image: golang:1.9-alpine
+  script: |
+    mkdir .artifacts_prepare_mbinit
+    mkdir .artifacts_prepare_mbinit/go
+    apk add --no-cache git
+    go get github.com/dumacp/mbinit
+    go install github.com/dumacp/mbinit
+    cp /go/bin/mbinit .artifacts_prepare_mbinit/go/
+  artifacts: # artifacts to upload for other jobs
+    paths:
+    - .artifacts_prepare_mbinit
+
+######## FRONT END: emi  ############
+
+build:emi:
+  stage: build
+  image:
+    name: node:10.17.0
+    entrypoint: ['bash', '-c', 'exec su node -c bash']
+  dependencies:
+    - prepare:environment
+  script: |
+    # config NODE user
+    whoami
+    npm config set user 0
+    npm config set unsafe-perm true
+    npm config set prefix '~/.npm-global'
+    export PATH=~/.npm-global/bin:$PATH
+    source ~/.profile
+    # Load Environment variables
+    source .artifacts_prepare/variables
+    # install @nebulae/cli
+    npm install -g @nebulae/cli@0.4.3
+    # Register micro-frontend
+    nebulae register microfrontend --microservice-id=$MICROSERVICE_ID --frontend-id=$FRONTEND_ID --setup-file=etc/mfe-setup.json --store-type=GCP_DATASTORE --gcp-service-account-token=.artifacts_prepare/gcloud-service-key.json 
+    # compose UI    
+    mkdir .artifacts_build_emi
+    nebulae compose-ui production  --frontend-id=$FRONTEND_ID --shell-type=FUSE_REACT --shell-repo="https://github.com/git_repo_directory_path/$FRONTEND_ID.git" --shell-repo-branch="$branch" --shell-repo-user="$CONTAINER_REGISTRY_ACCESS_TOKEN_LOGIN" --shell-repo-psw="$CONTAINER_REGISTRY_ACCESS_TOKEN" --output-dir=".artifacts_build_emi/emi/" --store-type=GCP_DATASTORE --gcp-service-account-token=.artifacts_prepare/gcloud-service-key.json 
+    # commit & push package-lock.json changes after ng build
+    # TODO: High priority: commit package-lock.json changes w/o triggering CI pipeline
+    ls .artifacts_build_emi/emi/
+  artifacts: # artifacts to upload for other jobs
+    paths:
+    - .artifacts_build_emi
+  only:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /cicd_frontend-emi/
+
+pack:emi:
+  stage: pack
+  tags:
+    - docker # force running on privileged executors
+  image: docker:stable
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+  services:
+    - docker:19.03.0-dind 
+  dependencies:
+    - prepare:environment
+    - build:emi
+  script: |
+    # Load Environment variables
+    env | grep KUBERNETES_SERVICE && export DOCKER_HOST="tcp://localhost:2375"
+    source .artifacts_prepare/variables
+    # Login into docker registry
+    docker login -u "$CONTAINER_REGISTRY_ACCESS_TOKEN_LOGIN" -p "$CONTAINER_REGISTRY_ACCESS_TOKEN" $CI_REGISTRY    
+    # BUILD AND PUBLISH DOCKER IAMGES
+    mkdir .artifacts_pack_emi
+    export IMAGE_NAMESPACE=$CI_REGISTRY/git_repo_directory_path/emi/$branch
+    docker build -t $IMAGE_NAMESPACE/$EMI_IMAGE_NAME:latest .artifacts_build_emi/emi
+    docker push $IMAGE_NAMESPACE/$EMI_IMAGE_NAME:latest
+    echo $IMAGE_NAMESPACE/$EMI_IMAGE_NAME@$(docker pull $IMAGE_NAMESPACE/$EMI_IMAGE_NAME:latest | grep sha256 | cut -c 9-) > .artifacts_pack_emi/DOCKER_GENERATED_IMAGE_DIGEST
+  artifacts: # artifacts to upload for other jobs
+    paths:
+    - .artifacts_pack_emi
+  only:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /cicd_frontend-emi/
+
+deploy:emi:
+  stage: deploy
+  image: google/cloud-sdk:241.0.0
+  dependencies:
+    - prepare:environment
+    - pack:emi
+  script: |        
+    # Load Environment variables
+    source .artifacts_prepare/variables
+    # configure gcloud cli
+    gcloud auth activate-service-account --key-file .artifacts_prepare/gcloud-service-key.json
+    gcloud --quiet config set project $GKE_PROJECT
+    gcloud --quiet config set compute/zone $GKE_ZONE
+    gcloud --quiet container clusters get-credentials $GKE_CLUSTER
+    # deploy emi
+    (ls .artifacts_pack_emi/DOCKER_GENERATED_IMAGE_DIGEST && echo docker image DIGEST to set $(< .artifacts_pack_emi/DOCKER_GENERATED_IMAGE_DIGEST) ) || echo FrontEnd emi REACT not found
+    (ls .artifacts_pack_emi/DOCKER_GENERATED_IMAGE_DIGEST && kubectl set image deployment/frontend-emi frontend-emi=$(< .artifacts_pack_emi/DOCKER_GENERATED_IMAGE_DIGEST) ) || echo FrontEnd emi REACT not found
+  only:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /cicd_frontend-emi/
+
+
+
+######## API: emi ############
+build:emi-gateway:
+  stage: build
+  image:
+    name: nebulae/node-10:0.0.2
+    #entrypoint: ['bash', '-c', 'exec su node -c bash']
+  dependencies:
+    - prepare:environment
+  script: |
+    # config NODE user
+    npm config set user 0
+    npm config set unsafe-perm true
+    npm config set prefix '~/.npm-global'
+    export PATH=~/.npm-global/bin:$PATH
+    source ~/.profile
+    # Load Environment variables
+    source .artifacts_prepare/variables
+    # install @nebulae/cli    
+    npm install -g @nebulae/cli
+    # Register micro-frontend
+    nebulae register microapi --microservice-id=$MICROSERVICE_ID --api-id=$EMI_API_ID --setup-file=etc/mapi-setup.json --store-type=GCP_DATASTORE --gcp-service-account-token=.artifacts_prepare/gcloud-service-key.json 
+    # compose API    
+    mkdir .artifacts_build_emi_gateway
+    nebulae compose-api production --api-id="emi-gateway" --api-repo="https://github.com/git_repo_directory_path/$EMI_API_ID.git" --api-repo-branch="$branch" --api-repo-user="$CONTAINER_REGISTRY_ACCESS_TOKEN_LOGIN" --api-repo-psw="$CONTAINER_REGISTRY_ACCESS_TOKEN" --api-type=NEBULAE_GATEWAY --output-dir=".artifacts_build_emi_gateway/emi-gateway/" --store-type=GCP_DATASTORE --gcp-service-account-token=.artifacts_prepare/gcloud-service-key.json
+    ls .artifacts_build_emi_gateway/emi-gateway/
+  artifacts: # artifacts to upload for other jobs
+    paths:
+    - .artifacts_build_emi_gateway
+  only:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /cicd_gateway-emi/
+
+pack:emi-gateway:
+  stage: pack
+  tags:
+    - docker # force running on privileged executors
+  image: docker:stable
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+  services:
+    - docker:19.03.0-dind
+  dependencies:
+    - prepare:environment
+    - build:emi-gateway
+  script: |
+    # Load Environment variables
+    env | grep KUBERNETES_SERVICE && export DOCKER_HOST="tcp://localhost:2375"
+    source .artifacts_prepare/variables
+    # Login into docker registry
+    docker login -u "$CONTAINER_REGISTRY_ACCESS_TOKEN_LOGIN" -p "$CONTAINER_REGISTRY_ACCESS_TOKEN" $CI_REGISTRY    
+    # BUILD AND PUBLISH DOCKER IAMGES
+    mkdir .artifacts_pack_emigateway
+    export IMAGE_NAMESPACE=$CI_REGISTRY/git_repo_directory_path/emi-gateway/$branch
+    docker build -t $IMAGE_NAMESPACE/$EMIGATEWAY_IMAGE_NAME:latest .artifacts_build_emi_gateway/emi-gateway
+    docker push $IMAGE_NAMESPACE/$EMIGATEWAY_IMAGE_NAME:latest
+    echo $IMAGE_NAMESPACE/$EMIGATEWAY_IMAGE_NAME@$(docker pull $IMAGE_NAMESPACE/$EMIGATEWAY_IMAGE_NAME:latest | grep sha256 | cut -c 9-) > .artifacts_pack_emigateway/DOCKER_GENERATED_IMAGE_DIGEST
+  artifacts: # artifacts to upload for other jobs
+    paths:
+    - .artifacts_pack_emigateway
+  only:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /cicd_gateway-emi/
+
+deploy:emi-gateway:
+  stage: deploy
+  image: google/cloud-sdk:241.0.0
+  dependencies:
+    - prepare:environment
+    - pack:emi-gateway
+  script: |        
+    # Load Environment variables
+    source .artifacts_prepare/variables
+    # configure gcloud cli
+    gcloud auth activate-service-account --key-file .artifacts_prepare/gcloud-service-key.json
+    gcloud --quiet config set project $GKE_PROJECT
+    gcloud --quiet config set compute/zone $GKE_ZONE
+    gcloud --quiet container clusters get-credentials $GKE_CLUSTER
+    # deploy emi
+    (ls .artifacts_pack_emigateway/DOCKER_GENERATED_IMAGE_DIGEST && echo docker image DIGEST to set $(< .artifacts_pack_emigateway/DOCKER_GENERATED_IMAGE_DIGEST) ) || echo API emi not found
+    (ls .artifacts_pack_emigateway/DOCKER_GENERATED_IMAGE_DIGEST && kubectl set image deployment/api-emi-gateway api-emi-gateway=$(< .artifacts_pack_emigateway/DOCKER_GENERATED_IMAGE_DIGEST) ) || echo API emi not found
+  only:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /cicd_gateway-emi/
+
+
+######## BACKEND: MICRO_SERVICE_TEMPLATE ############
+pack:backend-micro-service-template:
+  stage: pack
+  tags:
+    - docker # force running on privileged executors
+  image: docker:stable
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+  services:
+    - docker:19.03.0-dind
+  dependencies:
+    - prepare:environment
+    - prepare:mbinit
+  script: |
+    # Load Environment variables
+    env | grep KUBERNETES_SERVICE && export DOCKER_HOST="tcp://localhost:2375"
+    source .artifacts_prepare/variables
+    # Copy MbInit
+    cp .artifacts_prepare_mbinit/go/mbinit backend/micro-service-template/
+    # Login into docker registry
+    docker login -u "$CONTAINER_REGISTRY_ACCESS_TOKEN_LOGIN" -p "$CONTAINER_REGISTRY_ACCESS_TOKEN" $CI_REGISTRY        
+    # BUILD AND PUBLISH DOCKER IMAGES
+    export IMAGE_NAMESPACE=$CI_REGISTRY/git_repo_directory_path/$CI_PROJECT_NAME/$branch
+    docker build -t $IMAGE_NAMESPACE/$BE_MICRO_SERVICE_TEMPLATE_IMAGE_NAME:$BE_MICRO_SERVICE_TEMPLATE_IMAGE_TAG -t $IMAGE_NAMESPACE/$BE_MICRO_SERVICE_TEMPLATE_IMAGE_NAME:latest backend/micro-service-template
+    docker push $IMAGE_NAMESPACE/$BE_MICRO_SERVICE_TEMPLATE_IMAGE_NAME:$BE_MICRO_SERVICE_TEMPLATE_IMAGE_TAG
+    docker push $IMAGE_NAMESPACE/$BE_MICRO_SERVICE_TEMPLATE_IMAGE_NAME:latest
+  only:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /cicd_backend-micro-service-template/
+    
+deploy:backend-micro-service-template:
+  stage: deploy
+  image: google/cloud-sdk:241.0.0
+  dependencies:
+    - prepare:environment
+    - pack:backend-micro-service-template
+  script: |        
+    # Load Environment variables
+    source .artifacts_prepare/variables
+    # configure gcloud cli
+    gcloud auth activate-service-account --key-file .artifacts_prepare/gcloud-service-key.json
+    gcloud --quiet config set project $GKE_PROJECT
+    gcloud --quiet config set compute/zone $GKE_ZONE
+    gcloud --quiet container clusters get-credentials $GKE_CLUSTER
+    # override deployment image path
+    export IMAGE_NAMESPACE=$CI_REGISTRY/git_repo_directory_path/$CI_PROJECT_NAME/$branch
+    for xi in $(ls deployment/gke/*.y*ml); do sed -i -e "s|IMAGE_NAMESPACE|$IMAGE_NAMESPACE|g" -e "s|IMAGE_NAME|$BE_MICRO_SERVICE_TEMPLATE_IMAGE_NAME|g" -e "s|IMAGE_TAG|$BE_MICRO_SERVICE_TEMPLATE_IMAGE_TAG|g" $xi ; done
+    # for xi in $(ls deployment/gke/*.y*ml); do sed -i "s|IMAGE_NAMESPACE|$IMAGE_NAMESPACE|g" $xi ; done
+    # for xi in $(ls deployment/gke/*.y*ml); do sed -i "s|IMAGE_NAME|$BE_MICRO_SERVICE_TEMPLATE_IMAGE_NAME|g" $xi ; done
+    # for xi in $(ls deployment/gke/*.y*ml); do sed -i "s|IMAGE_TAG|$BE_MICRO_SERVICE_TEMPLATE_IMAGE_TAG|g" $xi ; done
+    # deploy on kubernetes
+    kubectl apply -f deployment/gke/
+  only:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /cicd_backend-micro-service-template/

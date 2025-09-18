@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: micr-serv-temp-mongo
+spec:
+  ports:
+  - port: 27017
+    name: micr-serv-temp-mongo
+  selector:
+    app: micr-serv-temp-mongo
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: micr-serv-temp-mongo-pv-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Gi
+  storageClassName: standard-exp  
+---
+apiVersion: apps/v1beta2 # for versions before 1.9.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: micr-serv-temp-mongo
+spec:
+  selector:
+    matchLabels:
+      app: micr-serv-temp-mongo
+  strategy:
+    type: Recreate      
+  template:
+    metadata:
+      labels:
+        app: micr-serv-temp-mongo
+    spec:
+      containers:
+      - image: mongo:4
+        name: micr-serv-temp-mongo        
+        ports:
+        - containerPort: 27017
+          name: micr-serv-temp-mongo
+        volumeMounts:
+        - name: micr-serv-temp-mongo-persistent-storage
+          mountPath: /data/db
+        resources:
+          requests:
+            cpu: "50m"
+      volumes:
+      - name: micr-serv-temp-mongo-persistent-storage
+        persistentVolumeClaim:
+          claimName: micr-serv-temp-mongo-pv-claim      
