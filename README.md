@@ -3,12 +3,12 @@
 
 
 
-# MicroServiceTemplate
+# ReporterMng
 The general porpouse of this service is to ...
 
 _This MicroService is built on top of NebulaE MicroService Framework.  Please see the [FrameWork project](https://github.com/NebulaEngineering/nebulae) to understand the full concept_**.
 
-![Intro](docs/images/ms-micro-service-template_intro.png "Intro")
+![Intro](docs/images/ms-reporter-mng_intro.png "Intro")
 # Table of Contents
   * [Project Structure](#structure)
   * [FrontEnd](#frontend)
@@ -16,10 +16,10 @@ _This MicroService is built on top of NebulaE MicroService Framework.  Please se
   * [API](#api)
     * [GraphQL throught emi-gateway API](#api_emi-gateway_graphql)
   * [BackEnd](#backend)
-    *  [micro-service-template](#backend_micro-service-template)
-        * [Environment variables](#backend_micro-service-template_env_vars)
-        * [Event Sourcing](#backend_micro-service-template_eventsourcing)
-        * [CronJobs](#backend_micro-service-template_cronjobs)
+    *  [reporter-mng](#backend_reporter-mng)
+        * [Environment variables](#backend_reporter-mng_env_vars)
+        * [Event Sourcing](#backend_reporter-mng_eventsourcing)
+        * [CronJobs](#backend_reporter-mng_cronjobs)
   * [Development environment](#dev_env)
 # Project structure <a name="structure"></a>
 
@@ -29,7 +29,7 @@ _This MicroService is built on top of NebulaE MicroService Framework.  Please se
 ├── api                                 => Micro-APIs  
 │   └── emi-gateway                           => Micro-API for [emi-gateway API](https://github.com/nebulae-university/emi-gateway)  
 ├── backend                             => Micro-BackEnds  
-│   ├── micro-service-template                     => Micro-BackEnd responsible for ...
+│   ├── reporter-mng                     => Micro-BackEnd responsible for ...
 ├── etc                                 => Micro-Service config Files.  
 ├── deployment                          => Automatic deployment strategies  
 │   ├── compose                         => Docker-Compose environment for local development  
@@ -53,7 +53,7 @@ The MicroService exposes its interfaces as Micro-APIs that are nested on the gen
 ## GraphQL throught emi-gateway API <a name="api_emi-gateway_graphql"></a>
 These are the exposed GraphQL functions throught the [emi-gateway API](https://github.com/nebulae-university/emi-gateway).  
 
-Note: You may find the GraphQL schema [here](api/emi-gateway/graphql/micro-service-template/schema.gql)
+Note: You may find the GraphQL schema [here](api/emi-gateway/graphql/reporter-mng/schema.gql)
 
 ### GraphQL Enums
 
@@ -63,14 +63,14 @@ Note: You may find the GraphQL schema [here](api/emi-gateway/graphql/micro-servi
     * sn: String! => sample string
     
 ### GraphQL Queries
-#### getHelloWorldFrommicro-service-template
+#### getHelloWorldFromreporter-mng
 * Description : sample query, please remove
 * returns : HelloWorld object.
 
 
 ### GraphQL Subscriptions
 
-#### micro-service-templateHelloWorldSubscription
+#### reporter-mngHelloWorldSubscription
 * Description: sample subscription, please remove
 * Data: HelloWorld object
 
@@ -87,11 +87,11 @@ Each BackEnd has the following running commands:
   * npm run sync-state:  syncs backend state by reading all missing Events from the event-store
   * npm test: runs unit tests
 
-## micro-service-template <a name="backend_micro-service-template"></a>
+## reporter-mng <a name="backend_reporter-mng"></a>
 ...
 
 
-### Environment variables <a name="backend_micro-service-template_env_vars"></a>
+### Environment variables <a name="backend_reporter-mng_env_vars"></a>
 
 
 ```
@@ -144,10 +144,10 @@ Each BackEnd has the following running commands:
 +------------------------------------------+--------+----------------------------------------------------------------------------------------------+-------+-----------+
 ```
 #### Notes: 
-  * ENV VARS for development are [here](backend/micro-service-template/.env)
-  * ENV VARS for production are [here](deployment/gke/deployment-micro-service-template.yaml)
+  * ENV VARS for development are [here](backend/reporter-mng/.env)
+  * ENV VARS for production are [here](deployment/gke/deployment-reporter-mng.yaml)
 
-### Event Sourcing <a name="backend_micro-service-template_eventsourcing"></a>
+### Event Sourcing <a name="backend_reporter-mng_eventsourcing"></a>
     Event sourcing events this Micro-BackEnd is subscribed to or is publishing.
 #### Subscribed events:    
 *   EventType: what for ...
@@ -155,7 +155,7 @@ Each BackEnd has the following running commands:
 #### Published events: 
 *   EventType: what for ...
 
-### CronJobs <a name="backend_micro-service-template_cronjobs"></a>
+### CronJobs <a name="backend_reporter-mng_cronjobs"></a>
 Time-based jobs that are configured and triggered by the [CronJob MicroService](https://github.com/nebulae-university/ms-cronjob)
 
 
@@ -176,7 +176,7 @@ Time-based jobs that are configured and triggered by the [CronJob MicroService](
 
 ![Development environment](docs/images/ms-devices-location-dev-env.png "Dev_environment")
 ### 1. clone this repo  
-   ```git clone https://github.com/nebulae-university/ms-micro-service-template.git```  
+   ```git clone https://github.com/nebulae-university/ms-reporter-mng.git```  
    
 ### 2. start databases, broker and security systems using docker-compose
 ```
@@ -215,12 +215,12 @@ Add the **developer** and **operator** rol to your user:
 
 ### 5. Compose FrontEnd
 ```
-nebulae compose-ui development --shell-type=FUSE2_ANGULAR --shell-repo=https://github.com/nebulae-university/emi --frontend-id=emi --output-dir=/FULL_PATH_TO_REPO/ms-micro-service-template/playground/emi  --setup-file=/FULL_PATH_TO_REPO/ms-micro-service-template/etc/mfe-setup.json
+nebulae compose-ui development --shell-type=FUSE2_ANGULAR --shell-repo=https://github.com/nebulae-university/emi --frontend-id=emi --output-dir=/FULL_PATH_TO_REPO/ms-reporter-mng/playground/emi  --setup-file=/FULL_PATH_TO_REPO/ms-reporter-mng/etc/mfe-setup.json
 ```
 
 ### 6. Compose the API emi-gateway
 ```
-nebulae compose-api development --api-type=NEBULAE_GATEWAY --api-repo=https://github.com/nebulae-university/emi-gateway --api-id=emi-gateway --output-dir=FULL_PATH_TO_REPO/ms-micro-service-template/playground/emi-gateway  --setup-file=FULL_PATH_TO_REPO/ms-micro-service-template/etc/mapi-setup.json
+nebulae compose-api development --api-type=NEBULAE_GATEWAY --api-repo=https://github.com/nebulae-university/emi-gateway --api-id=emi-gateway --output-dir=FULL_PATH_TO_REPO/ms-reporter-mng/playground/emi-gateway  --setup-file=FULL_PATH_TO_REPO/ms-reporter-mng/etc/mapi-setup.json
 ```
 
 ### 7. Set the JWT token 
@@ -228,7 +228,7 @@ nebulae compose-api development --api-type=NEBULAE_GATEWAY --api-repo=https://gi
 * select the DEV_nebulae keycloak realm and click on 'realm settings' in left panel
 * select keys option tab
 * click on 'public key' from the RSA key and copy the contents.
-* set this key value to the **JWT_PUBLIC_KEY** atribute in the following files: *WORKING_FOLDER*/ms-micro-service-template/backend/micro-service-template/.env   *WORKING_FOLDER*/ms-micro-service-template/playground/emi-gateway/.env  
+* set this key value to the **JWT_PUBLIC_KEY** atribute in the following files: *WORKING_FOLDER*/ms-reporter-mng/backend/reporter-mng/.env   *WORKING_FOLDER*/ms-reporter-mng/playground/emi-gateway/.env  
 Note: use the following format: ```JWT_PUBLIC_KEY=-----BEGIN PUBLIC KEY-----\nPUT_HERE_JWT_PUBLIC_KEY_VALUE\n-----END PUBLIC KEY-----```
 * Setup the Apollo engine key to trace API requests
     * create a key at https://engine.apollographql.com/ and set it to the **APOLLO_ENGINE_API_KEY** atribute in the playground/emi-gateway/.env file
@@ -245,7 +245,7 @@ docker-compose up
 ```
 1. Start the Micro-BackEnd
 ```
-cd backend/micro-service-template/
+cd backend/reporter-mng/
 npm install
 npm start
 ```

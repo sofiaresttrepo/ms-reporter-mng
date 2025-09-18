@@ -779,7 +779,7 @@
       },
       {
         "id": "f7f49df1-de5c-44af-9269-9815643c4970",
-        "name": "CRUD_AGGREGATE_READ",
+        "name": "REPORT_READ",
         "composite": false,
         "clientRole": false,
         "containerId": "FLEET_DEVICES",
@@ -1660,7 +1660,7 @@
       },
       {
         "id": "b255b70a-39b6-404b-8923-812a9b33e88a",
-        "name": "CRUD_AGGREGATE_WRITE",
+        "name": "REPORT_WRITE",
         "composite": false,
         "clientRole": false,
         "containerId": "FLEET_DEVICES",

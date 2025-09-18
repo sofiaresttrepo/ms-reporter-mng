@@ -1,8 +1,8 @@
 [
     {
-        "name": "micro-service-template-crud-aggregate",
+        "name": "reporter-mng-report-management",
         "type": "graphql",        
-        "src": "api/emi-gateway/graphql/micro-service-template-crud-aggregate",
+        "src": "api/emi-gateway/graphql/reporter-mng-report-management",
         "preBuildCommands": []
     }
 ]

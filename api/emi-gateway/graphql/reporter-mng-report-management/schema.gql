@@ -1,0 +1,93 @@
+type CommandResponse {
+  "Response code"
+  code: Int
+  "Response message"
+  message: String
+}
+
+type ReporterMngReport {
+  "Report ID"
+  id: ID!
+  "name"
+  name: String!
+  "organization id"
+  organizationId: String!
+  "Report description"
+  description: String
+  "Report active flag"
+  active: Boolean!  
+  "object metadata"
+  metadata: ReporterMngReportMetadata
+}
+
+type ReporterMngReportMetadata {
+    createdBy: String
+		createdAt: BigInt
+		updatedBy: String
+		updatedAt: BigInt
+}
+
+type ReporterMngReportListing {
+  "Listing"
+  listing: [ReporterMngReport]
+  "query total result count"
+  queryTotalResultCount: Int,  
+}
+
+
+input ReporterMngReportFilterInput {
+  "Name"
+  name: String
+  "organization id"
+  organizationId: String!
+  "Report active flag"
+  active: Boolean
+}
+
+input ReporterMngReportPaginationInput {
+  "Page"
+  page: Int!
+  "Count"
+  count: Int!
+  "query total result count flag"
+  queryTotalResultCount: Boolean
+}
+
+input ReporterMngReportSortInput {
+  field: String!,
+  asc: Boolean!,
+}
+
+input ReporterMngReportInput {
+  "name"
+  name: String
+  "organization id"
+  organizationId: String!
+  "Report description"
+  description: String
+  "Report active flag"
+  active: Boolean
+}
+
+
+type Query {
+  "Get Reports filtered "
+  ReporterMngReportListing(filterInput: ReporterMngReportFilterInput, paginationInput: ReporterMngReportPaginationInput, sortInput: ReporterMngReportSortInput): ReporterMngReportListing
+  "Get Report by its id"
+  ReporterMngReport(id: ID!, organizationId: String!): ReporterMngReport
+}
+
+type Mutation {
+  "Create a new Report"
+  ReporterMngCreateReport(input: ReporterMngReportInput!): ReporterMngReport
+  "Update an Report"
+  ReporterMngUpdateReport(id: ID!, input: ReporterMngReportInput!, merge: Boolean!): ReporterMngReport  
+  "Deletes an Report"
+  ReporterMngDeleteReports(ids: [ID]!): CommandResponse  
+}
+
+
+type Subscription {
+  "This events is triggered when a report updated or deleted"
+  ReporterMngReportModified(id: ID!): ReporterMngReport
+}
